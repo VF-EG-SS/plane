@@ -97,7 +97,8 @@ docker run --name myaio --rm -it \
 
 #### File Handling
 
-- `FILE_SIZE_LIMIT`: Maximum file upload size in bytes (default: `5242880` = 5MB)
+- `FILE_SIZE_LIMIT`: Maximum file upload size in bytes (default: `209715200` = 200 MiB)
+- `PROXY_BODY_SIZE_LIMIT`: Maximum whole HTTP request size in bytes (default: `211812352` = 202 MiB)
 
 #### API Configuration
 

@@ -13,12 +13,22 @@ import { NAMESPACES, DEFAULT_NAMESPACE } from "../constants/namespaces";
 
 import type { i18n as I18nInstance } from "i18next";
 
+const localeLoaders = import.meta.glob("../locales/*/*.json");
+
 export const i18nInstance: I18nInstance = i18n.createInstance();
 
 i18nInstance
   .use(ICU)
   .use(initReactI18next)
-  .use(resourcesToBackend((language: string, namespace: string) => import(`../locales/${language}/${namespace}.json`)));
+  .use(
+    resourcesToBackend((language: string, namespace: string) => {
+      const localeLoader = localeLoaders[`../locales/${language}/${namespace}.json`];
+
+      if (!localeLoader) return Promise.reject(new Error(`Missing locale: ${language}/${namespace}`));
+
+      return localeLoader();
+    })
+  );
 
 const initialLng =
   typeof window !== "undefined" ? localStorage.getItem(LANGUAGE_STORAGE_KEY) || FALLBACK_LANGUAGE : FALLBACK_LANGUAGE;

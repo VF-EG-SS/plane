@@ -16,9 +16,10 @@ handlers then resolved issues without scoping to the URL project:
   the moved sub-issues by ``workspace__slug`` only, letting a member re-parent
   issues from other projects/workspaces (write IDOR).
 
-The fix scopes every lookup to the URL ``project_id`` (and binds the parent to
-the workspace), so a caller can only ever touch sub-issues of the project they
-are actually a member of.
+The fix binds the parent to the URL ``project_id`` and restricts the returned
+children to projects the caller is a member of. This preserves valid
+cross-project relationships for members of both projects without exposing
+another project's work items.
 """
 
 import pytest
@@ -112,7 +113,7 @@ def orphan_a(db, workspace, project_a, create_user):
 
 @pytest.mark.contract
 class TestSubIssuesCrossProjectScope:
-    """A project member must not read or write another project's sub-issue graph."""
+    """Only authorized users may read cross-project children; writes stay project-scoped."""
 
     @pytest.mark.django_db
     def test_read_cross_project_sub_issues_hidden(
@@ -121,8 +122,7 @@ class TestSubIssuesCrossProjectScope:
         """GET with a parent that lives in a project the caller isn't in leaks nothing.
 
         The URL project is A (caller is a member); the parent issue lives in B.
-        Before the fix the endpoint returned B's sub-issues; now the project scope
-        excludes them.
+        The parent constraints exclude B's sub-issues from the response.
         """
         url = SUB_ISSUES_URL.format(
             slug=workspace.slug, project_id=project_a.id, issue_id=parent_b.id
@@ -135,6 +135,49 @@ class TestSubIssuesCrossProjectScope:
         returned_ids = {str(row["id"]) for row in response.data["sub_issues"]}
         assert str(sub_b.id) not in returned_ids, (
             f"Leaked cross-project sub-issue: {response.data!r}"
+        )
+
+    @pytest.mark.django_db
+    def test_read_cross_project_sub_issues_hidden_from_non_members(
+        self, session_client, workspace, project_a, project_b, parent_a, create_user
+    ):
+        """A child in a project the caller cannot access is omitted."""
+        cross_project_sub_issue = _make_issue(
+            "B sub-issue", project_b, workspace, create_user, parent=parent_a
+        )
+        url = SUB_ISSUES_URL.format(
+            slug=workspace.slug, project_id=project_a.id, issue_id=parent_a.id
+        )
+
+        response = session_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        returned_ids = {str(row["id"]) for row in response.data["sub_issues"]}
+        assert str(cross_project_sub_issue.id) not in returned_ids, (
+            f"Leaked cross-project sub-issue: {response.data!r}"
+        )
+
+    @pytest.mark.django_db
+    def test_read_cross_project_sub_issues_visible_to_members_of_both_projects(
+        self, session_client, workspace, project_a, project_b, parent_a, create_user
+    ):
+        """A member of both projects can see a cross-project child issue."""
+        ProjectMember.objects.create(
+            project=project_b, member=create_user, workspace=workspace, role=20
+        )
+        cross_project_sub_issue = _make_issue(
+            "B sub-issue", project_b, workspace, create_user, parent=parent_a
+        )
+        url = SUB_ISSUES_URL.format(
+            slug=workspace.slug, project_id=project_a.id, issue_id=parent_a.id
+        )
+
+        response = session_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        returned_ids = {str(row["id"]) for row in response.data["sub_issues"]}
+        assert str(cross_project_sub_issue.id) in returned_ids, (
+            f"Expected the authorized cross-project sub-issue in {response.data!r}"
         )
 
     @pytest.mark.django_db

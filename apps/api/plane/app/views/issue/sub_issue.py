@@ -22,7 +22,16 @@ from rest_framework import status
 from .. import BaseAPIView
 from plane.app.serializers import IssueSerializer
 from plane.app.permissions import ProjectEntityPermission
-from plane.db.models import Issue, IssueLink, FileAsset, CycleIssue, IssueLabel, IssueAssignee, ModuleIssue
+from plane.db.models import (
+    Issue,
+    IssueLink,
+    FileAsset,
+    CycleIssue,
+    IssueLabel,
+    IssueAssignee,
+    ModuleIssue,
+    ProjectMember,
+)
 from plane.bgtasks.issue_activities_task import issue_activity
 from plane.utils.timezone_converter import user_timezone_converter
 from collections import defaultdict
@@ -35,13 +44,28 @@ class SubIssuesEndpoint(BaseAPIView):
 
     @method_decorator(gzip_page)
     def get(self, request, slug, project_id, issue_id):
-        # SECURITY: scope the parent lookup to the URL project. ProjectEntityPermission
-        # only checks that the caller belongs to `project_id`, not that `issue_id` lives
-        # in it, so an unscoped filter leaks sub-issue metadata across projects in the
-        # same workspace.
+        # Bind the parent to the URL project. ProjectEntityPermission verifies
+        # membership in `project_id`, but does not confirm that `issue_id` belongs
+        # to it. The parent constraints below prevent an arbitrary issue id from
+        # exposing another project's graph.
+
+        # Cross-project sub-issues are supported by the client. Return them only
+        # when the current user is an active member of the child issue's project;
+        # this preserves the relationship for authorized users without exposing
+        # metadata from projects they cannot access.
+        accessible_project_ids = ProjectMember.objects.filter(
+            workspace__slug=slug,
+            member=request.user,
+            is_active=True,
+        ).values("project_id")
+
         sub_issues = (
             Issue.issue_objects.filter(
-                parent_id=issue_id, workspace__slug=slug, project_id=project_id
+                parent_id=issue_id,
+                workspace__slug=slug,
+                parent__workspace__slug=slug,
+                parent__project_id=project_id,
+                project_id__in=accessible_project_ids,
             )
             .annotate(
                 cycle_id=Subquery(
