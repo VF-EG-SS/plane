@@ -19,6 +19,9 @@ const basePath = joinUrlPath(process.env.VITE_ADMIN_BASE_PATH ?? "", "/") ?? "/"
 
 export default defineConfig(() => ({
   base: basePath,
+  // Allow local development to move Vite's generated cache out of watched folders.
+  // This avoids intermittent EBUSY failures from Windows file scanners/editors.
+  cacheDir: process.env.PLANE_VITE_CACHE_DIR,
   define: {
     "process.env": JSON.stringify(viteEnv),
   },

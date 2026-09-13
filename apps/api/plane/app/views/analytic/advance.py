@@ -299,6 +299,16 @@ class AdvanceAnalyticsChartEndpoint(AdvanceAnalyticsBaseView):
                 .prefetch_related("assignees", "labels", "issue_module__module", "issue_cycle__cycle")
             )
 
+            # A named label filter is used by the Bug work item breakdowns. Keep the
+            # soft-delete constraint on the bridge table so removed labels do not
+            # appear in analytics.
+            label_name = request.GET.get("label_name")
+            if label_name:
+                queryset = queryset.filter(
+                    labels__name__iexact=label_name,
+                    label_issue__deleted_at__isnull=True,
+                ).distinct()
+
             # Apply date range filter if available
             if self.filters["chart_period_range"]:
                 start_date, end_date = self.filters["chart_period_range"]

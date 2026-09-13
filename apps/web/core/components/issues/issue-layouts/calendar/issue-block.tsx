@@ -151,7 +151,6 @@ export const CalendarIssueBlock = observer(
                       block: isMenuActive,
                     })}
                     onClick={(e) => {
-                      e.preventDefault();
                       e.stopPropagation();
                     }}
                   >

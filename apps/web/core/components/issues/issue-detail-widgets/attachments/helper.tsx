@@ -27,6 +27,39 @@ export type TAttachmentHelpers = {
   snapshot: TAttachmentSnapshot;
 };
 
+type TAttachmentUploadError = {
+  detail?: string;
+  error?: string;
+  max_size?: number;
+  response?: {
+    data?: TAttachmentUploadError;
+  };
+};
+
+export const getAttachmentUploadErrorMessage = (error: unknown): string => {
+  const errorPayload = error as TAttachmentUploadError | undefined;
+  const responsePayload = errorPayload?.response?.data ?? errorPayload;
+  const retryMessage = "Uploads cannot resume. Select the file and retry from the beginning.";
+
+  switch (responsePayload?.error) {
+    case "INVALID_FILE_SIZE":
+      return `The file size is invalid. ${retryMessage}`;
+    case "FILE_TOO_LARGE": {
+      const maxSize = responsePayload.max_size;
+      const limitMessage = maxSize
+        ? `The file exceeds the ${maxSize / 1024 / 1024} MiB limit.`
+        : "The file is too large.";
+      return `${limitMessage} Choose a smaller file and retry from the beginning.`;
+    }
+    case "UPLOAD_NOT_FOUND":
+      return `The uploaded file could not be found in storage. ${retryMessage}`;
+    case "UPLOAD_METADATA_MISMATCH":
+      return `The uploaded file did not match its declared size or type. ${retryMessage}`;
+    default:
+      return `The attachment could not be uploaded. ${retryMessage}`;
+  }
+};
+
 export const useAttachmentOperations = (
   workspaceSlug: string,
   projectId: string,
@@ -50,7 +83,7 @@ export const useAttachmentOperations = (
           },
           error: {
             title: "Attachment not uploaded",
-            message: () => "The attachment could not be uploaded",
+            message: (error: unknown) => getAttachmentUploadErrorMessage(error),
           },
         });
 

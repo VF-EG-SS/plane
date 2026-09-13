@@ -69,7 +69,7 @@ export const StateItem = observer(function StateItem(props: TStateItem) {
     const initialData: TDraggableData = { groupKey: groupKey, id: state.id };
 
     if (elementRef && state) {
-      combine(
+      return combine(
         draggable({
           element: elementRef,
           getInitialData: () => initialData,

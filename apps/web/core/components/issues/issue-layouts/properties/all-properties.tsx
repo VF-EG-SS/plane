@@ -190,7 +190,6 @@ export const IssueProperties = observer(function IssueProperties(props: IIssuePr
   // oxlint-disable-next-line unicorn/consistent-function-scoping
   const handleEventPropagation = (e: SyntheticEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    e.preventDefault();
   };
 
   return (

@@ -19,6 +19,7 @@ import { AddFilterButton } from "./add-filters/button";
 import { FilterItem } from "./filter-item/root";
 
 export type TFiltersRowProps<K extends TFilterProperty, E extends TExternalFilter> = {
+  actions?: React.ReactNode;
   buttonConfig?: TAddFilterButtonProps<K, E>["buttonConfig"];
   disabledAllOperations?: boolean;
   filter: IFilterInstance<K, E>;
@@ -28,14 +29,20 @@ export type TFiltersRowProps<K extends TFilterProperty, E extends TExternalFilte
 export const FiltersRow = observer(function FiltersRow<K extends TFilterProperty, E extends TExternalFilter>(
   props: TFiltersRowProps<K, E>
 ) {
-  const { buttonConfig, disabledAllOperations: disabledAllOperationsProp = false, filter, variant = "header" } = props;
+  const {
+    actions,
+    buttonConfig,
+    disabledAllOperations: disabledAllOperationsProp = false,
+    filter,
+    variant = "header",
+  } = props;
   // states
   const [isUpdating, setIsUpdating] = useState(false);
   // derived values
   const disabledAllOperations = disabledAllOperationsProp || !filter.configManager.areConfigsReady;
   const hasAnyConditions = filter.allConditionsForDisplay.length > 0;
   const hasAvailableOperations =
-    !disabledAllOperations && (filter.canClearFilters || filter.canSaveView || filter.canUpdateView);
+    !disabledAllOperations && (filter.canClearFilters || filter.canSaveView || filter.canUpdateView || !!actions);
 
   const headerButtonConfig: Partial<TAddFilterButtonProps<K, E>["buttonConfig"]> = {
     label: null,
@@ -99,6 +106,7 @@ export const FiltersRow = observer(function FiltersRow<K extends TFilterProperty
           {isUpdating ? "Confirming" : (filter.updateViewOptions?.label ?? "Update view")}
         </Button>
       </ElementTransition>
+      {actions}
     </>
   );
 

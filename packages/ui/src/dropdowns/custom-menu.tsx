@@ -135,7 +135,6 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
 
   const handleMenuButtonClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.stopPropagation();
-    e.preventDefault();
     if (isOpen) {
       closeDropdown();
     } else {
@@ -236,7 +235,6 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
       role="presentation"
       onClick={(e) => {
         e.stopPropagation();
-        e.preventDefault();
         handleOnClick();
       }}
       onMouseEnter={handleMouseEnter}

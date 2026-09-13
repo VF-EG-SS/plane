@@ -185,7 +185,6 @@ export function LabelDropdown(props: ILabelDropdownProps) {
   const handleOnClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
-      e.preventDefault();
       toggleDropdown();
     },
     [toggleDropdown]
@@ -233,7 +232,6 @@ export function LabelDropdown(props: ILabelDropdownProps) {
 
   const preventPropagation = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     e.stopPropagation();
-    e.preventDefault();
   };
 
   return (

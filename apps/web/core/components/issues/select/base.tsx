@@ -120,7 +120,6 @@ export const WorkItemLabelSelectBase = observer(function WorkItemLabelSelectBase
 
   const handleOnClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.stopPropagation();
-    e.preventDefault();
     toggleDropdown();
   };
 

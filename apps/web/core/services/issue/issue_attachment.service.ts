@@ -36,7 +36,7 @@ export class IssueAttachmentService extends APIService {
     )
       .then((response) => response?.data)
       .catch((error) => {
-        throw error?.response?.data;
+        throw error?.response?.data ?? error;
       });
   }
 
@@ -64,7 +64,7 @@ export class IssueAttachmentService extends APIService {
         return signedURLResponse.attachment;
       })
       .catch((error) => {
-        throw error?.response?.data;
+        throw error?.response?.data ?? error;
       });
   }
 

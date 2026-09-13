@@ -301,7 +301,6 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   "lg:flex": !isSidebarCollapsed,
                 })}
                 onClick={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
                 }}
               >

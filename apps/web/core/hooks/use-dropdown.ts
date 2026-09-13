@@ -63,7 +63,6 @@ export const useDropdown = (args: TArguments) => {
    */
   const handleOnClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.stopPropagation();
-    e.preventDefault();
     toggleDropdown();
   };
 

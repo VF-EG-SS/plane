@@ -24,9 +24,14 @@ from plane.db.models import FileAsset, Workspace
 from plane.bgtasks.issue_activities_task import issue_activity
 from plane.app.permissions import allow_permission, ROLE
 from plane.settings.storage import S3Storage
-from plane.utils.path_validator import sanitize_filename
-from plane.bgtasks.storage_metadata_task import get_asset_object_metadata
+from plane.utils.file_size import FileTooLarge, InvalidFileSize, validate_file_size
 from plane.utils.host import base_host
+from plane.utils.issue_attachment_upload import (
+    UploadMetadataMismatch,
+    UploadNotFound,
+    verify_issue_attachment_upload,
+)
+from plane.utils.path_validator import sanitize_filename
 
 
 class IssueAttachmentEndpoint(BaseAPIView):
@@ -100,7 +105,28 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
     def post(self, request, slug, project_id, issue_id):
         name = sanitize_filename(request.data.get("name")) or "unnamed"
         type = request.data.get("type", False)
-        size = int(request.data.get("size", settings.FILE_SIZE_LIMIT))
+
+        try:
+            size = validate_file_size(request.data.get("size"), settings.FILE_SIZE_LIMIT)
+        except InvalidFileSize:
+            return Response(
+                {
+                    "error": "INVALID_FILE_SIZE",
+                    "detail": "File size must be a positive integer number of bytes.",
+                    "status": False,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FileTooLarge:
+            return Response(
+                {
+                    "error": "FILE_TOO_LARGE",
+                    "detail": "File size exceeds the maximum allowed size.",
+                    "max_size": settings.FILE_SIZE_LIMIT,
+                    "status": False,
+                },
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
 
         if not type or type not in settings.ATTACHMENT_MIME_TYPES:
             return Response(
@@ -114,14 +140,11 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
         # asset key
         asset_key = f"{workspace.id}/{uuid.uuid4().hex}-{name}"
 
-        # Get the size limit
-        size_limit = min(size, settings.FILE_SIZE_LIMIT)
-
         # Create a File Asset
         asset = FileAsset.objects.create(
-            attributes={"name": name, "type": type, "size": size_limit},
+            attributes={"name": name, "type": type, "size": size},
             asset=asset_key,
-            size=size_limit,
+            size=size,
             workspace_id=workspace.id,
             created_by=request.user,
             issue_id=issue_id,
@@ -133,7 +156,7 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
         storage = S3Storage(request=request)
 
         # Generate a presigned URL to share an S3 object
-        presigned_url = storage.generate_presigned_post(object_name=asset_key, file_type=type, file_size=size_limit)
+        presigned_url = storage.generate_presigned_post(object_name=asset_key, file_type=type, file_size=size)
 
         # Return the presigned URL
         return Response(
@@ -204,13 +227,35 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def patch(self, request, slug, project_id, issue_id, pk):
-        issue_attachment = FileAsset.objects.get(
-            pk=pk, workspace__slug=slug, project_id=project_id, issue_id=issue_id
-        )
-        serializer = IssueAttachmentSerializer(issue_attachment)
+        try:
+            issue_attachment, was_confirmed = verify_issue_attachment_upload(
+                attachment_id=pk,
+                workspace_slug=slug,
+                project_id=project_id,
+                issue_id=issue_id,
+                request=request,
+            )
+        except UploadNotFound:
+            return Response(
+                {
+                    "error": "UPLOAD_NOT_FOUND",
+                    "detail": "The uploaded object was not found.",
+                    "status": False,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        except UploadMetadataMismatch:
+            return Response(
+                {
+                    "error": "UPLOAD_METADATA_MISMATCH",
+                    "detail": "The uploaded object does not match the declared size or type.",
+                    "status": False,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        # Send this activity only if the attachment is not uploaded before
-        if not issue_attachment.is_uploaded:
+        if was_confirmed:
+            serializer = IssueAttachmentSerializer(issue_attachment)
             issue_activity.delay(
                 type="attachment.activity.created",
                 requested_data=None,
@@ -222,13 +267,4 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
                 notification=True,
                 origin=base_host(request=request, is_app=True),
             )
-
-            # Update the attachment — do NOT overwrite created_by; it is set at
-            # creation time and must not be reassigned (GHSA-5mxw-g5mw-3v3w).
-            issue_attachment.is_uploaded = True
-
-        # Get the storage metadata
-        if not issue_attachment.storage_metadata:
-            get_asset_object_metadata.delay(str(issue_attachment.id))
-        issue_attachment.save()
         return Response(status=status.HTTP_204_NO_CONTENT)

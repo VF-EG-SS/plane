@@ -166,6 +166,8 @@ export type TPieChartProps<K extends string, T extends string> = Pick<
   paddingAngle?: number;
   showLabel: boolean;
   customLabel?: (value: any) => string;
+  /** Called when a pie slice or its label is selected. */
+  onItemClick?: (data: TChartData<K, T>) => void;
   centerLabel?: {
     className?: string;
     fill: string;

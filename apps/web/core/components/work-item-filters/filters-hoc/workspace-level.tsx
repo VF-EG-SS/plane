@@ -20,6 +20,7 @@ import { useGlobalView } from "@/hooks/store/use-global-view";
 import { useLabel } from "@/hooks/store/use-label";
 import { useMember } from "@/hooks/store/use-member";
 import { useProject } from "@/hooks/store/use-project";
+import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUser, useUserPermissions } from "@/hooks/store/user";
 // local imports
 import { WorkItemFiltersHOC } from "./base";
@@ -42,6 +43,7 @@ export const WorkspaceLevelWorkItemFiltersHOC = observer(function WorkspaceLevel
   const { data: currentUser } = useUser();
   const { allowPermissions } = useUserPermissions();
   const { joinedProjectIds } = useProject();
+  const { workspaceStates } = useProjectState();
   const {
     workspace: { getWorkspaceMemberIds },
   } = useMember();
@@ -191,6 +193,7 @@ export const WorkspaceLevelWorkItemFiltersHOC = observer(function WorkspaceLevel
         memberIds={getWorkspaceMemberIds(workspaceSlug)}
         labelIds={getWorkspaceLabelIds(workspaceSlug)}
         projectIds={joinedProjectIds}
+        stateIds={workspaceStates?.map((state) => state.id)}
         saveViewOptions={saveViewOptions}
         updateViewOptions={updateViewOptions}
       >

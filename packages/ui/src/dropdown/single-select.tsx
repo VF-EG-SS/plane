@@ -77,7 +77,6 @@ export function Dropdown(props: ISingleSelectDropdown) {
 
   const handleOnClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.stopPropagation();
-    e.preventDefault();
     toggleDropdown();
   };
 

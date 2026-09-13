@@ -30,6 +30,7 @@ export const PieChart = React.memo(function PieChart<K extends string, T extends
     cornerRadius,
     paddingAngle,
     tooltipLabel,
+    onItemClick,
   } = props;
   // states
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -78,12 +79,15 @@ export const PieChart = React.memo(function PieChart<K extends string, T extends
             outerRadius={outerRadius}
             cornerRadius={cornerRadius}
             paddingAngle={paddingAngle}
+            onClick={(data) => {
+              if (onItemClick && data?.payload) onItemClick(data.payload);
+            }}
             labelLine={false}
             label={
               showLabel
                 ? ({ payload, ...props }) => (
                     <text
-                      className="text-sm font-medium transition-opacity duration-200"
+                      className={`text-sm font-medium transition-opacity duration-200${onItemClick ? " cursor-pointer" : ""}`}
                       cx={props.cx}
                       cy={props.cy}
                       x={props.x}
@@ -92,6 +96,7 @@ export const PieChart = React.memo(function PieChart<K extends string, T extends
                       dominantBaseline={props.dominantBaseline}
                       fill="var(--text-color-secondary)"
                       opacity={!!activeLegend && activeLegend !== payload.key ? 0.1 : 1}
+                      onClick={() => onItemClick?.(payload)}
                     >
                       {customLabel?.(payload.count) ?? payload.count}
                     </text>

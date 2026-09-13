@@ -46,7 +46,6 @@ export const SubIssuesListItemProperties = observer(function SubIssuesListItemPr
 
   const handleEventPropagation = (e: SyntheticEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    e.preventDefault();
   };
 
   const handleStartDate = (date: Date | null) => {
