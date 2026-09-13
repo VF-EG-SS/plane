@@ -235,6 +235,10 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
       role="presentation"
       onClick={(e) => {
         e.stopPropagation();
+        // Keep menu interactions from activating a clickable parent (for example,
+        // a work-item ControlLink). This runs after Menu.Button/Menu.Item handlers,
+        // so Headless UI can process the click before its default action is canceled.
+        e.preventDefault();
         handleOnClick();
       }}
       onMouseEnter={handleMouseEnter}

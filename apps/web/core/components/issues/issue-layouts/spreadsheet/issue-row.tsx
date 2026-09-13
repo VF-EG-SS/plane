@@ -363,7 +363,10 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                 </div>
                 <div
                   className={`opacity-0 transition-opacity group-hover:opacity-100 ${isMenuActive ? "!opacity-100" : ""}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
                 >
                   {quickActions({
                     issue: issueDetail,

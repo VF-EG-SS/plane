@@ -302,6 +302,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                 })}
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                 }}
               >
                 {quickActions({

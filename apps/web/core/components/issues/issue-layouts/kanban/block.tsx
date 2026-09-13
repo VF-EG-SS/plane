@@ -87,6 +87,7 @@ const KanbanIssueDetailsBlock = observer(function KanbanIssueDetailsBlock(props:
   // oxlint-disable-next-line unicorn/consistent-function-scoping
   const handleEventPropagation = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
   };
 
   useOutsideClickDetector(menuActionRef, () => setIsMenuActive(false));

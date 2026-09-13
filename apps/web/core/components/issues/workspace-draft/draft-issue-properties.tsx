@@ -136,6 +136,7 @@ export const DraftIssueProperties = observer(function DraftIssueProperties(props
 
   const handleEventPropagation = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
   };
 
   return (

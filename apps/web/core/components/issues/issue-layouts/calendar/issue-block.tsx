@@ -152,6 +152,7 @@ export const CalendarIssueBlock = observer(
                     })}
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
                     }}
                   >
                     {quickActions({

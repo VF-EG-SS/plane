@@ -232,6 +232,7 @@ export function LabelDropdown(props: ILabelDropdownProps) {
 
   const preventPropagation = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     e.stopPropagation();
+    e.preventDefault();
   };
 
   return (
