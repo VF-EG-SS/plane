@@ -5,7 +5,7 @@
  */
 
 import { Combobox } from "@headlessui/react";
-import type { ElementType, KeyboardEventHandler, ReactNode, Ref } from "react";
+import type { ElementType, KeyboardEventHandler, MouseEventHandler, ReactNode, Ref } from "react";
 import React, { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -17,6 +17,7 @@ type Props = {
   onChange?: (value: any) => void;
   disabled?: boolean | undefined;
   onKeyDown?: KeyboardEventHandler<HTMLDivElement> | undefined;
+  onClick?: MouseEventHandler<HTMLDivElement> | undefined;
   multiple?: boolean;
   renderByDefault?: boolean;
   button: ReactNode;
@@ -24,7 +25,13 @@ type Props = {
 };
 
 const ComboDropDown = forwardRef(function ComboDropDown(props: Props, ref) {
-  const { button, renderByDefault = true, children, ...rest } = props;
+  const { button, renderByDefault = true, children, onClick, ...rest } = props;
+
+  const preventParentClick: MouseEventHandler<HTMLDivElement> = (event) => {
+    onClick?.(event);
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   const dropDownButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -48,7 +55,15 @@ const ComboDropDown = forwardRef(function ComboDropDown(props: Props, ref) {
 
   if (!shouldRender) {
     return (
-      <div ref={dropDownButtonRef} className="flex h-full items-center">
+      <div
+        ref={dropDownButtonRef}
+        role="presentation"
+        className="flex h-full items-center"
+        onClick={preventParentClick}
+        onFocusCapture={onHover}
+        onKeyDown={(event) => event.stopPropagation()}
+        onPointerEnter={onHover}
+      >
         {button}
       </div>
     );
@@ -57,7 +72,7 @@ const ComboDropDown = forwardRef(function ComboDropDown(props: Props, ref) {
   return (
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
-    <Combobox {...rest} ref={ref}>
+    <Combobox {...rest} ref={ref} onClick={preventParentClick}>
       <Combobox.Button as={Fragment}>{button}</Combobox.Button>
       {children}
     </Combobox>

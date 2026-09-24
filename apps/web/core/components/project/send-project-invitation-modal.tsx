@@ -202,7 +202,7 @@ export const SendProjectInvitationModal = observer(function SendProjectInvitatio
                         <CustomSearchSelect
                           value={value}
                           customButton={
-                            <button className="shadow-sm flex w-full items-center justify-between gap-1 rounded-md border border-subtle px-3 py-2 text-left text-13 text-secondary duration-300 hover:bg-layer-1 hover:text-primary focus:outline-none">
+                            <div className="shadow-sm flex w-full items-center justify-between gap-1 rounded-md border border-subtle px-3 py-2 text-left text-13 text-secondary duration-300 hover:bg-layer-1 hover:text-primary focus:outline-none">
                               {value && value !== "" ? (
                                 <div className="flex items-center gap-2">
                                   <Avatar
@@ -217,7 +217,7 @@ export const SendProjectInvitationModal = observer(function SendProjectInvitatio
                                 <div className="flex items-center gap-2 py-0.5">Select co-worker</div>
                               )}
                               <ChevronDownOutline className="h-3 w-3" aria-hidden="true" />
-                            </button>
+                            </div>
                           }
                           onChange={(val: string) => {
                             onChange(val);

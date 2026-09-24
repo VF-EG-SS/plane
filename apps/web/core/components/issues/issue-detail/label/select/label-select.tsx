@@ -172,6 +172,7 @@ export const IssueLabelSelect = observer(function IssueLabelSelect(props: IIssue
                     </div>
                   </div>
                   <Combobox.Options
+                    modal={false}
                     as="div"
                     className="vertical-scrollbar mt-2 scrollbar-sm max-h-48 overflow-y-scroll px-2 pr-0"
                   >

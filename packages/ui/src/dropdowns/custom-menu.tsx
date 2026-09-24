@@ -12,7 +12,6 @@ import { usePopper } from "react-popper";
 import { useOutsideClickDetector } from "@plane/hooks";
 // plane helpers
 // helpers
-import { useDropdownKeyDown } from "../hooks/use-dropdown-key-down";
 import { cn } from "../utils";
 // hooks
 // types
@@ -55,7 +54,32 @@ function Portal({ children, container, asChild = false }: PortalProps) {
 const MenuContext = React.createContext<{
   closeAllSubmenus: () => void;
   registerSubmenu: (closeSubmenu: () => void) => () => void;
+  closeDropdown: () => void;
+  portalContainer: HTMLElement | null;
 } | null>(null);
+
+function MenuStateSync({
+  open,
+  close,
+  closeRef,
+  onOpenChange,
+}: {
+  open: boolean;
+  close: () => void;
+  closeRef: React.MutableRefObject<(() => void) | null>;
+  onOpenChange: (open: boolean) => void;
+}) {
+  React.useEffect(() => {
+    closeRef.current = close;
+    return () => {
+      closeRef.current = null;
+    };
+  }, [close, closeRef]);
+
+  React.useEffect(() => onOpenChange(open), [open, onOpenChange]);
+
+  return null;
+}
 
 function CustomMenu(props: ICustomMenuDropdownProps) {
   const {
@@ -86,14 +110,21 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
   } = props;
 
   const [referenceElement, setReferenceElement] = React.useState<HTMLButtonElement | null>(null);
-  const [popperElement, setPopperElement] = React.useState<HTMLDivElement | null>(null);
+  const [popperElement, setPopperElement] = React.useState<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = React.useState(false);
   // refs
   const dropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const headlessCloseRef = React.useRef<(() => void) | null>(null);
+  const isOpenRef = React.useRef(false);
   const submenuClosersRef = React.useRef<Set<() => void>>(new Set());
 
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
+  const {
+    styles,
+    attributes,
+    state: popperState,
+  } = usePopper(referenceElement, popperElement, {
     placement: placement ?? "auto",
+    strategy: "fixed",
   });
 
   const closeAllSubmenus = React.useCallback(() => {
@@ -107,40 +138,38 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
     };
   }, []);
 
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (isOpenRef.current === open) return;
+      isOpenRef.current = open;
+      setIsOpen(open);
+      if (!open) {
+        closeAllSubmenus();
+        onMenuClose?.();
+      }
+    },
+    [closeAllSubmenus, onMenuClose]
+  );
+
   const openDropdown = () => {
-    setIsOpen(true);
-    if (referenceElement) referenceElement.focus();
+    if (!isOpen) {
+      referenceElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })
+      );
+    }
   };
 
   const closeDropdown = React.useCallback(() => {
-    if (isOpen) {
-      closeAllSubmenus();
-      onMenuClose?.();
-    }
-    setIsOpen(false);
-  }, [isOpen, closeAllSubmenus, onMenuClose]);
-
-  const selectActiveItem = () => {
-    const activeItem: HTMLElement | undefined | null = dropdownRef.current?.querySelector(
-      `[data-headlessui-state="active"] button`
-    );
-    activeItem?.click();
-  };
-
-  const handleKeyDown = useDropdownKeyDown(openDropdown, closeDropdown, isOpen, selectActiveItem);
+    headlessCloseRef.current?.();
+    handleOpenChange(false);
+  }, [handleOpenChange]);
 
   const handleOnClick = () => {
     if (closeOnSelect) closeDropdown();
   };
 
-  const handleMenuButtonClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    e.stopPropagation();
-    if (isOpen) {
-      closeDropdown();
-    } else {
-      openDropdown();
-    }
-    if (menuButtonOnClick) menuButtonOnClick();
+  const handleMenuButtonClick = () => {
+    menuButtonOnClick?.();
   };
 
   const handleMouseEnter = () => {
@@ -188,13 +217,19 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
   }, [isOpen, closeDropdown, useCaptureForOutsideClick]);
 
   const menuContextValue = React.useMemo(
-    () => ({ closeAllSubmenus, registerSubmenu }),
-    [closeAllSubmenus, registerSubmenu]
+    () => ({ closeAllSubmenus, registerSubmenu, closeDropdown, portalContainer: popperElement }),
+    [closeAllSubmenus, registerSubmenu, closeDropdown, popperElement]
   );
 
   let menuItems = (
     <Menu.Items
       data-prevent-outside-click={!!portalElement}
+      ref={setPopperElement}
+      style={{
+        ...styles.popper,
+        visibility: popperState?.elements.popper === popperElement ? "visible" : "hidden",
+      }}
+      {...attributes.popper}
       className={cn(
         "fixed z-30 translate-y-0",
         menuItemsClassName
@@ -212,9 +247,6 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
           },
           optionsClassName
         )}
-        ref={setPopperElement}
-        style={styles.popper}
-        {...attributes.popper}
       >
         <MenuContext.Provider value={menuContextValue}>{children}</MenuContext.Provider>
       </div>
@@ -231,28 +263,26 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
       ref={dropdownRef}
       tabIndex={tabIndex}
       className={cn("relative w-min text-left", className)}
-      onKeyDown={handleKeyDown}
       role="presentation"
       onClick={(e) => {
         e.stopPropagation();
-        // Keep menu interactions from activating a clickable parent (for example,
-        // a work-item ControlLink). This runs after Menu.Button/Menu.Item handlers,
-        // so Headless UI can process the click before its default action is canceled.
+        // Headless UI handles the menu click before this cancels the parent link.
         e.preventDefault();
-        handleOnClick();
+        if (!referenceElement?.contains(e.target as Node)) handleOnClick();
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       data-main-menu="true"
     >
-      {({ open }) => (
+      {({ open, close }) => (
         <>
+          <MenuStateSync open={open} close={close} closeRef={headlessCloseRef} onOpenChange={handleOpenChange} />
           {customButton ? (
             <Menu.Button as={React.Fragment}>
               <button
                 ref={setReferenceElement}
                 type="button"
-                onClick={handleMenuButtonClick}
+                onClickCapture={handleMenuButtonClick}
                 className={customButtonClassName}
                 tabIndex={customButtonTabIndex}
                 disabled={disabled}
@@ -268,7 +298,7 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
                   <button
                     ref={setReferenceElement}
                     type="button"
-                    onClick={handleMenuButtonClick}
+                    onClickCapture={handleMenuButtonClick}
                     disabled={disabled}
                     className={`relative grid place-items-center rounded-sm p-1 text-secondary outline-none hover:text-primary ${
                       disabled ? "cursor-not-allowed" : "cursor-pointer hover:bg-layer-transparent-hover"
@@ -289,7 +319,7 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
                     } ${noBorder ? "" : "shadow-sm border border-strong focus:outline-none"} ${
                       disabled ? "cursor-not-allowed text-secondary" : "cursor-pointer hover:bg-layer-transparent-hover"
                     } ${buttonClassName}`}
-                    onClick={handleMenuButtonClick}
+                    onClickCapture={handleMenuButtonClick}
                     tabIndex={customButtonTabIndex}
                     disabled={disabled}
                     aria-label={ariaLabel}
@@ -301,7 +331,7 @@ function CustomMenu(props: ICustomMenuDropdownProps) {
               )}
             </>
           )}
-          {isOpen && menuItems}
+          {open && menuItems}
         </>
       )}
     </Menu>
@@ -334,7 +364,7 @@ function SubMenu(props: ICustomSubMenuProps) {
 
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
     placement,
-    strategy: "fixed", // Use fixed positioning to escape overflow constraints
+    strategy: "absolute",
     modifiers: [
       {
         name: "offset",
@@ -405,7 +435,7 @@ function SubMenu(props: ICustomSubMenuProps) {
   return (
     <div ref={submenuRef} className={cn("relative", className)}>
       <span ref={setReferenceElement} className="w-full">
-        <Menu.Item as="div" disabled={disabled}>
+        <Menu.Item as={React.Fragment} disabled={disabled}>
           {({ active }) => (
             <button
               type="button"
@@ -428,13 +458,13 @@ function SubMenu(props: ICustomSubMenuProps) {
       </span>
 
       {isOpen && (
-        <Portal>
+        <Portal container={menuContext?.portalContainer}>
           <div
             ref={setPopperElement}
             style={styles.popper}
             {...attributes.popper}
             className={cn(
-              "shadow-md fixed z-30 min-w-[12rem] overflow-hidden rounded-md border border-strong-1 bg-surface-1 p-1 text-11 ring-1 ring-strong-1/15",
+              "shadow-md absolute z-30 min-w-[12rem] overflow-hidden rounded-md border border-strong-1 bg-surface-1 p-1 text-11 ring-1 ring-strong-1/15",
               contentClassName
             )}
             data-prevent-outside-click="true"
@@ -466,9 +496,10 @@ function SubMenu(props: ICustomSubMenuProps) {
 function MenuItem(props: ICustomMenuItemProps) {
   const { children, disabled = false, onClick, className } = props;
   const submenuContext = useSubMenu();
+  const menuContext = React.useContext(MenuContext);
 
   return (
-    <Menu.Item as="div" disabled={disabled}>
+    <Menu.Item as={React.Fragment} disabled={disabled}>
       {({ active, close }) => (
         <button
           type="button"
@@ -481,8 +512,11 @@ function MenuItem(props: ICustomMenuItemProps) {
             className
           )}
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             close();
             onClick?.(e);
+            menuContext?.closeDropdown();
             // Close submenu if this item is inside a submenu
             submenuContext?.closeSubmenu();
           }}
