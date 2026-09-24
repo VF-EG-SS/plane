@@ -114,10 +114,15 @@ export const DateRangeDropdown = observer(function DateRangeDropdown(props: Prop
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   // popper-js refs
   const [referenceElement, setReferenceElement] = useState<HTMLButtonElement | null>(null);
-  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
+  const [popperElement, setPopperElement] = useState<HTMLElement | null>(null);
   // popper-js init
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
+  const {
+    styles,
+    attributes,
+    state: popperState,
+  } = usePopper(referenceElement, popperElement, {
     placement: placement ?? "bottom-start",
+    strategy: renderInPortal ? "fixed" : "absolute",
     modifiers: [
       {
         name: "preventOverflow",
@@ -255,13 +260,20 @@ export const DateRangeDropdown = observer(function DateRangeDropdown(props: Prop
   );
 
   const comboOptions = (
-    <Combobox.Options modal={false} as="ul" data-prevent-outside-click static>
-      <div
-        className="z-30 my-1 overflow-hidden rounded-md border-[0.5px] border-subtle-1 bg-surface-1"
-        ref={setPopperElement}
-        style={styles.popper}
-        {...attributes.popper}
-      >
+    <Combobox.Options
+      modal={false}
+      as="ul"
+      className={renderInPortal ? "fixed z-50" : "absolute z-50"}
+      data-prevent-outside-click
+      static
+      ref={setPopperElement}
+      style={{
+        ...styles.popper,
+        visibility: popperState?.elements.popper === popperElement ? "visible" : "hidden",
+      }}
+      {...attributes.popper}
+    >
+      <div className="z-30 my-1 overflow-hidden rounded-md border-[0.5px] border-subtle-1 bg-surface-1">
         <Calendar
           className="rounded-md border border-subtle p-3 text-12"
           captionLayout="dropdown"
@@ -283,6 +295,7 @@ export const DateRangeDropdown = observer(function DateRangeDropdown(props: Prop
   const Options = renderInPortal ? createPortal(comboOptions, document.body) : comboOptions;
 
   return (
+    // oxlint-disable-next-line jsx_a11y/no-static-element-interactions
     <ComboDropDown
       as="div"
       ref={dropdownRef}
